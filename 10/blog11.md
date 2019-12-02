@@ -1,5 +1,7 @@
 Hi! I'm ComplexPlane. I first joined the team for a brief period this past summer, but then I took a bit of a break soon after. Now I'm back, and I'm working on improving Rolled Out's physics!
 
+## Super Monkey Ball Physics Importance
+
 Implementing collision physics in Rolled Out! isn't as simple as tweaking Unreal's built-in physics engine to make it work as we want; instead, we're implementing our own collision algorithms. Bites did an excellent job explaining why we might want to do this in our first dev blog, I'll copy it here:
 
 > Most physics engines perform calculations in discrete distances and steps, where an object exists in one position on frame 1, and a different position on frame 2, where all of the space between those frames isn’t tested. This means in a typical physics simulation, something moving at a sufficiently high velocity can travel through other objects - a phenomenon referred to as ‘tunneling’.
@@ -21,6 +23,8 @@ SMB doesn't quite work this way, however! Although in most cases it will complet
 And remember, SMB manages to do all of this with stages comprising a large number of triangles, while running at 60FPS on a Nintendo Gamecube.
 
 I believe there's a lot we can learn from the original SMB games that could greatly influence our approach to building Rolled Out!'s physics. While Rolled Out! in its current form can handle stage-ball collision very nicely for _static_ stages, our attempts to handle _moving_ stages still cannot hold a candle to SMB's physics engine!
+
+## Looking Closer at SMB Physics
 
 But how could we further investigate SMB's physics, and maybe learn something along the way? By breaking the game, of course!
 
@@ -72,7 +76,9 @@ This test really stumped us though. It's a similar rotating platform, but instea
 
 You get hit _way_ further away from the platform than you would expect! What could the game be doing? Is it just some weird bug or edge case that we don't care about, or is it illustrating something relevant?
 
-I had a theory, and an idea for one more test stage which might help prove it. Rather than showing you a long video, a couple simple 2D diagrams should describe it more easily.
+## SMB Continuous Collision Detection Theory
+
+I had a theory for this behavior, and an idea for one more test stage which might help prove it. Rather than showing you a long video, a couple simple 2D diagrams should describe it more easily.
 
 ![projection theory diagram](project.png)
 

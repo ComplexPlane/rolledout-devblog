@@ -8,15 +8,17 @@ Implementing collision physics in Rolled Out! isn't as simple as tweaking Unreal
 
 In my opinion, Super Monkey Ball's ball-stage collision behavior is quite special because it seems to handle so many ridiculous situations in surprisingly coherent ways. 
 
-* SMB provides robust Continuous Collision Detection (CCD): no matter how fast your ball is going (ball speed is _not_ capped!), and no matter how nutty or fast-moving your stage is, SMB will prevent teleportation in most cases.
-*
-* SMB has pretty interesting _depenetration_ behavior. In most 3D game physics systems, depenetrating the player from the world looks something like this:
-    1. Move the player a tiny bit, depending on their velocity
-    2. Check if the player is intersecting the world
-    3. If so, move the player back inside the world so they're no longer intersecting with it
+For one, SMB provides robust Continuous Collision Detection (CCD): no matter how fast your ball is going (ball speed is _not_ capped!), and no matter how nutty or fast-moving your stage is, SMB will prevent teleportation in most cases.
+
+In addition, SMB has pretty interesting _depenetration_ behavior. In most 3D game physics systems, depenetrating the player from the world looks something like this:
+
+1. Move the player a tiny bit, depending on their velocity
+2. Check if the player is intersecting the world
+3. If so, move the player back inside the world so they're no longer intersecting with it
+
 SMB doesn't quite work this way, however! Although in most cases it will completely depenetrate the ball from the stage, in other cases it will allow the ball to remain partially-intersecting the stage between frames! That's... weird. But the weirder part is, this seems to make the physics behavior _more_ robust and sensible, not less!
 
-* SMB manages to do all of this with stages comprising a large number of triangles, while running at 60FPS on a Nintendo Gamecube.
+And don't forget, SMB manages to do all of this with stages comprising a large number of triangles, while running at 60FPS on a Nintendo Gamecube.
 
 I believe there's a lot we can learn from the original SMB games that could greatly influence our approach to building Rolled Out!'s physics. While Rolled Out! in its current form can handle stage-ball collision very nicely for _static_ stages, our attempts to handle _moving_ stages still cannot hold a candle to SMB's physics engine!
 
@@ -88,8 +90,8 @@ Here is what I think is happening: for a given triangle, the game checks whether
 
 This ball-center-projection appears to be a key part of Super Monkey Ball's CCD!
 
-Here's a neat demo Bites made which exposes the discovery in a simple way:
+Here's a nice video by Bites that sums it up:
 
-![bites single tri rotating test]()
+![bites single tri rotating test](https://streamable.com/58bot)
 
-Anyway, there's a lot of other theories and code-related stuff I could continue on about, but that'll be all for this post. Look forward to more next time!
+Anyway, there's a lot of other theories and code-related stuff I could continue on about, but that'll be all from me for this post. Look forward to more next time!

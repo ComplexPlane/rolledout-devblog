@@ -10,7 +10,7 @@ In my opinion, Super Monkey Ball's ball-stage collision behavior is quite specia
 
 For one, SMB provides robust Continuous Collision Detection (CCD): no matter how fast your ball is going (ball speed is _not_ capped!), and no matter how nutty or fast-moving your stage is, SMB will prevent teleportation in most cases.
 
-In addition, SMB has pretty interesting _depenetration_ behavior. In most 3D game physics systems, depenetrating the player from the world looks something like this:
+SMB also has pretty interesting _depenetration_ behavior. In most 3D game physics systems, depenetrating the player from the world looks something like this:
 
 1. Move the player a tiny bit, depending on their velocity
 2. Check if the player is intersecting the world
@@ -18,7 +18,7 @@ In addition, SMB has pretty interesting _depenetration_ behavior. In most 3D gam
 
 SMB doesn't quite work this way, however! Although in most cases it will completely depenetrate the ball from the stage, in other cases it will allow the ball to remain partially-intersecting the stage between frames! That's... weird. But the weirder part is, this seems to make the physics behavior _more_ robust and sensible, not less!
 
-And don't forget, SMB manages to do all of this with stages comprising a large number of triangles, while running at 60FPS on a Nintendo Gamecube.
+And remember, SMB manages to do all of this with stages comprising a large number of triangles, while running at 60FPS on a Nintendo Gamecube.
 
 I believe there's a lot we can learn from the original SMB games that could greatly influence our approach to building Rolled Out!'s physics. While Rolled Out! in its current form can handle stage-ball collision very nicely for _static_ stages, our attempts to handle _moving_ stages still cannot hold a candle to SMB's physics engine!
 
@@ -74,24 +74,14 @@ You get hit _way_ further away from the platform than you would expect! What cou
 
 I had a theory, and an idea for one more test stage which might help prove it. Rather than showing you a long video, a couple simple 2D diagrams should describe it more easily.
 
-![diagram, before collision]()
+![projection theory diagram](project.png)
 
-The lines represent triangles, and the circles represent the ball. In each of the four situations, the triangle moves from the higher position to the lower position in one frame. The question is, when does the ball get hit?
+The lines represent triangles, and the circles represent the ball. In each of the four situations, the triangle moves from the higher position to the lower position in one frame. As it turns out, the ball is hit in situations A, B, and C, but not in situation D!
 
-These are the results:
+Here is what I think is happening: for a given triangle, the game checks whether the ball's center _projects into_ the triangle either before or after the frame. However, the game also checks whether the ball is facing the _front_ of the triangle _before_ its animation, as well as facing the _back_ of the triangle _after_ its animation; otherwise, the ball could collide with triangles that don't pass through it! This ball-center-projection appears to be a key part of Super Monkey Ball's CCD.
 
-![diagram, showing which hit the ball]()
-
-The ball is hit each time, except in situation D!
-
-Here is what I think is happening: for a given triangle, the game checks whether the ball's center _projects into_ the triangle either before or after the frame. However, the game also checks whether the ball is facing the _front_ of the triangle _before_ its animation, as well as facing the _back_ of the triangle _after_ its animation; otherwise, the ball could collide with triangles that don't pass through it!
-
-![diagram, with projection arrows]()
-
-This ball-center-projection appears to be a key part of Super Monkey Ball's CCD!
-
-Here's a nice video by Bites that sums it up:
+Here's a neat demo Bites made which exposes the discovery in a simple way:
 
 ![bites single tri rotating test](https://streamable.com/58bot)
 
-Anyway, there's a lot of other theories and code-related stuff I could continue on about, but that'll be all from me for this post. Look forward to more next time!
+Anyway, there's a lot of other theories and code-related stuff I could continue on about, but that'll be all for this post. Look forward to more next time!

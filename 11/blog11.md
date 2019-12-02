@@ -22,17 +22,17 @@ I believe there's a lot we can learn from the original SMB games that could grea
 
 But how could we further investigate SMB's physics, and maybe learn something along the way? By breaking the game, of course!
 
-[game breaking video]()
+![game breaking video](breaking.mp4)
 
 Okay well, how about a more principled way to put it: we can carefully observe how the game handles collision under specially-crafted circumstances. We can manufacture these specially-crafted circumstances by building some custom levels for SMB, and seeing what the game does with them!
 
 Over the last few weeks, I've been working closely with Bites to design some custom stages which may expose some of the inner-workings of SMB physics. And by "working closely with Bites", I mean "poorly describing some stage ideas to Bites, watching him actually labor over creating the goofy stages in Blender, and then acting like I did something".
 
-[i made this picture]()
+![i made this picture](madethis-blend.png)
 
 Here's some of the physics test stages we've made!
 
-[mosaic overview of stages]()
+![test stages](teststages.png)
 
 We've learned a lot over the process of iteratively making, testing, and making more of these stages, but for the conciseness of this blog post, I'll go into one particular phenomenon we're pretty certain understand better now.
 
@@ -40,19 +40,19 @@ One gimmick we've employed across the test stages in a variety of ways is using 
 
 Take this situation: a simple box starts below the stage, and in one frame it moves above the stage, completely passing through a ball resting on the stage. Yet, _you will still get hit!_
 
-[asdfasdf]()
+![hit1](hit1.mp4)
 
 This is CCD in action; clearly the game is not simply checking whether the box's final position would intersect the ball. Detecting whether a continuously translating sphere and a continuously translating+rotating triangle would ever intersect isn't exactly straightforward to do efficiently, either. Something else is going on here.
 
 Upon closer inspection, we see this:
 
-[asdfasdfasdf]()
+![hit2](hit2.mp4)
 
 It seems like the ball doesn't hit the box unless more than half of the ball is over it! Hmm...
 
 What happens if we put a donut shape under the ball?
 
-[asdfasdfasdf]()
+![hit3](hit3.mp4)
 
 So long as the donut also passes completely through the ball in a single frame, it seems like we also don't get hit! Maybe it's using the ball's center as some sort of reference?
 
@@ -60,36 +60,36 @@ These examples so far only looked at collision with _translating_ triangles, but
 
 Here's a platform that rotates 90 degrees in a single frame periodically.
 
-[asdfasdfasdf]()
+![hit4](hit4.mp4)
 
 Seems consistent enough with our previous observations: you get hit when the ball's center is in the way.
 
-This test really stumped us though. It's the same rotating platform, but instead of rotating to angles of 0, 90, 180, and 270 degrees, it's on the diagonals: 45, 135, 225, and 315 degrees.
+This test really stumped us though. It's a similar rotating platform, but instead of rotating to angles of 0, 90, 180, and 270 degrees, it's on the diagonals: 45, 135, 225, and 315 degrees. Make sure to watch the minimap: the blue strip on the ground is where the rotating platform passes through the ground.
 
-[asdfasdfsadf]()
+![hit5](hit5.mp4)
 
 You get hit _way_ further away from the platform than you would expect! What could the game be doing? Is it just some weird bug or edge case that we don't care about, or is it illustrating something relevant?
 
 I had a theory, and an idea for one more test stage which might help prove it. Rather than showing you a long video, a couple simple 2D diagrams should describe it more easily.
 
-[diagram, before collision]()
+![diagram, before collision]()
 
 The lines represent triangles, and the circles represent the ball. In each of the four situations, the triangle moves from the higher position to the lower position in one frame. The question is, when does the ball get hit?
 
 These are the results:
 
-[diagram, showing which hit the ball]()
+![diagram, showing which hit the ball]()
 
 The ball is hit each time, except in situation D!
 
 Here is what I think is happening: for a given triangle, the game checks whether the ball's center _projects into_ the triangle either before or after the frame. However, the game also checks whether the ball is facing the _front_ of the triangle _before_ its animation, as well as facing the _back_ of the triangle _after_ its animation; otherwise, the ball could collide with triangles that don't pass through it!
 
-[diagram, with projection arrows]()
+![diagram, with projection arrows]()
 
 This ball-center-projection appears to be a key part of Super Monkey Ball's CCD!
 
 Here's a neat demo Bites made which exposes the discovery in a simple way:
 
-[bites single tri rotating test]()
+![bites single tri rotating test]()
 
 Anyway, there's a lot of other theories and code-related stuff I could continue on about, but that'll be all for this post. Look forward to more next time!

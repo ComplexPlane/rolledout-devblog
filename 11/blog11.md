@@ -1,93 +1,56 @@
-Hi! I'm ComplexPlane. I first joined the team for a brief period this past summer, but then I took a bit of a break soon after. Now I'm back, and I'm working on improving Rolled Out's physics!
+# ComplexPlane: Substantial Improvement in Collision Physics
 
-## Super Monkey Ball Physics Importance
+We've made a lot of progress on our collision physics during the last two weeks! The ball's interaction with the stage, whether it's with a stationary part or an animated part, now feels quite smooth, correct, and a lot more like Monkey Ball.
 
-Implementing collision physics in Rolled Out! isn't as simple as tweaking Unreal's built-in physics engine to make it work as we want; instead, we're implementing our own collision algorithms. Bites did an excellent job explaining why we might want to do this in our first dev blog, I'll copy it here:
+I've spent a lot of time in voice calls with Bites, CraftedCart, and CraftSpider recently, and they've tremendously helped the process of implementing and testing some of these new physics ideas. Special thanks to Bites for constantly feeding me ideas to help rapidly debug and refine things as we went along, to CraftedCart for tackling some dreaded axis-related bugs for our stage import/export code, and to CraftSpider for some of the math code they'd written before and for implementing a fix to a stage animation loop-point bug.
 
-> Most physics engines perform calculations in discrete distances and steps, where an object exists in one position on frame 1, and a different position on frame 2, where all of the space between those frames isn’t tested. This means in a typical physics simulation, something moving at a sufficiently high velocity can travel through other objects - a phenomenon referred to as ‘tunneling’.
->
-> We’re aiming for a completely continuous simulation, where no matter how fast either the ball or a stage object moves, the interaction is always what you would expect. This isn’t as hard as it sounds if you’re building physics objects to certain specifications - constructing their collision out of one or more convex hulls (shapes which all vertices point ‘outwards’) makes the math for this simpler. Doubly so if you only want to translate - no rotation. However, we have objects which consist of completely arbitrary shapes, which can move and rotate in absolutely any way desired by the level designer.
+Here's a small demo video which was posted to Discord and Twitter: 
 
-In my opinion, Super Monkey Ball's ball-stage collision behavior is quite special because it seems to handle so many ridiculous situations in surprisingly coherent ways. 
+![New Physics Brief Demo](https://streamable.com/m5qgi)
 
-For one, SMB provides robust Continuous Collision Detection (CCD): no matter how fast your ball is going (ball speed is _not_ capped!), and no matter how nutty or fast-moving your stage is, SMB will prevent teleportation in most cases.
+The demo's a bit brief though; be sure to hang out in Bites' development stream or watch some of our beta testers to see more of the physics in action!
 
-SMB also has pretty interesting _depenetration_ behavior. In most 3D game physics systems, depenetrating the player from the world looks something like this:
+Although it took us quite some time to boil down the ideas that led to this improvement, the math itself is actually pretty simple! In this blog post, let's go over one of the ideas behind the new physics.
 
-1. Move the player a tiny bit, depending on their velocity
-2. Check if the player is intersecting the world
-3. If so, move the player back inside the world so they're no longer intersecting with it
+## Triangle-Centric Collision
 
-SMB doesn't quite work this way, however! Although in most cases it will completely depenetrate the ball from the stage, in other cases it will allow the ball to remain partially-intersecting the stage between frames! That's... weird. But the weirder part is, this seems to make the physics behavior _more_ robust and sensible, not less!
+Whether you're a game player or a game developer, it's normal to conceptualize your experience from the perspective of the virtual player which you control. In the case of the ball and the stage, it's natural to ask: does the ball hit the stage? If so, where and how? Stages are made of [many triangles stitched together](http://www.cmap.polytechnique.fr/~peyre/images/test_remeshing.jpg), so this boils down to: given the ball's position and velocity at some given time, which triangle(s) does the ball hit, how does the ball hit them, and how should the collision affect the ball?
 
-And remember, SMB manages to do all of this with stages comprising a large number of triangles, while running at 60FPS on a Nintendo Gamecube.
+It's tricky to implement something with this ball-first mentality in practice though in our case. The ball can potentially interact with several different triangles in rapid succession, especially considering how fast the ball can move and how wacky our stages' animation can be, and it's not immediately clear how to resolve every case. We want to give a sensible result for each potential collision which lets the player remain in control of the ball.
 
-I believe there's a lot we can learn from the original SMB games that could greatly influence our approach to building Rolled Out!'s physics. While Rolled Out! in its current form can handle stage-ball collision very nicely for _static_ stages, our attempts to handle _moving_ stages still cannot hold a candle to SMB's physics engine!
+During the stage testing in Super Monkey Ball 2 I did with Bites (which I discussed in the last blog post), I observed that the game appears to take a simple, reversed approach: for each frame of the game loop, check each triangle in succession, and only once, to see if it would collide with the ball. If so, apply a collision to the ball: _depenetrate the ball_ by moving the ball onto the triangle, and _apply a collision response to the ball_ by setting a new velocity for the ball as a result of it bouncing off the triangle.
 
-## Looking Closer at SMB Physics
+Although maybe not apparent at first, this very straightforward approach vastly improves the robustness of ball-stage interaction in many cases.
 
-But how could we further investigate SMB's physics, and maybe learn something along the way? By breaking the game, of course!
+* Each triangle "does its best effort" to affect the ball, but once it's tested, it isn't tested again. We never get caught in a loop where the ball bounces around and interacts with the same triangles repeatedly in a single frame.
+* By only considering each triangle once, we permit the ball to exist "inside the stage" between frames. This might seem like a bad thing at first; wouldn't we want the ball to be _on the stage_ at all times? If the ball rams into a concave corner at high speed, or if a platform squishes the ball between two surfaces at once, it's often more sensible to permit the ball to partially intersect the stage for a while.
+* Trying each triangle once in a row is an inherently ordered operation. If we try each triangle in the same order each frame, the ball should behave more consistently when it needs to interact with more than one triangle simultaneously. Ever noticed how on Monkey Ball 2 stages like [Totalitarianism](https://vignette.wikia.nocookie.net/supermonkeyball/images/7/74/015rings.png/revision/latest/scale-to-width-down/310?cb=20190523203407) or Dribbles, if you're hit directly overhead by a ring or dribble, you're always sent _through the ground_, not the ring/dribble? Consistent triangle ordering is what defines this behavior, I believe.
 
-![game breaking video](breaking.mp4)
+## Examples
 
-Okay well, how about a more principled way to put it: we can carefully observe how the game handles collision under specially-crafted circumstances. We can manufacture these specially-crafted circumstances by building some custom levels for SMB, and seeing what the game does with them!
+![Triangle-Centric Collision Examples](multitri.png)
 
-Over the last few weeks, I've been working closely with Bites to design some custom stages which may expose some of the inner-workings of SMB physics. And by "working closely with Bites", I mean "poorly describing some stage ideas to Bites, watching him actually labor over creating the goofy stages in Blender, and then acting like I did something".
+In each frame, the ball's position is first affected by gravity and its current velocity, as indicated by the orange arrow (for this post, we'll assume the ball has minimal initial velocity). It is then affected by each triangle (black line) in an arbitrary but consistent order. Orange means a triangle was tested and a hit was detected, and pink means a triangle was tested and a hit was not detected.
 
-![i made this picture](madethis-blend.png)
+In situation 1, the ball will always collide with the top triangle last, so the ball will consistently get pushed into the lower triangle over time. Eventually, the ball will fall through the ground. Something to note is that we (as well as Super Monkey Ball 2, apparently) don't count a collision if the ball has passed more than halfway through the triangle. This trick improves robustness when the ball is pushed through the stage.
 
-Here's some of the physics test stages we've made!
+In situation 2, a rotating triangle pushes the ball to the left over time. Since the ground triangle is always tested last, the ball tends to intersect the rotating triangle a bit between frames. Because the ball may remain intersecting the stage, it makes smooth and steady progress rolling to the left, as opposed to more jumpy and drastic progress.
 
-![test stages](teststages.png)
+In situation 3, the ball is pressed into a hole in the ground. In frame 1, the ball is affected by the top edge of each vertical triangle in succession, placing it on top again. In frame 2, the same thing happens but the ball is depenetrated away from the top triangle such that it intersects both vertical triangles again. If we fast-forward to frame 5, we get a slightly different but still pretty consistent behavior: the ball rests on the face of the right vertical triangle.
 
-We've learned a lot over the process of iteratively making, testing, and making more of these stages, but for the conciseness of this blog post, I'll go into one particular phenomenon we're pretty certain understand better now.
+And finally, here are a couple real illustrations of this behavior in Rolled Out, courtesy of Bites:
 
-One gimmick we've employed across the test stages in a variety of ways is using triangles which change their position and/or rotation in a single frame, rather than smoothly across many frames. By doing this, we can better guess at what SMB's physics is doing _per frame_.
+![Two Illustrations of Triangle-Centric Collision in Rolled Out](https://streamable.com/8tukk)
 
-Take this situation: a simple box starts below the stage, and in one frame it moves above the stage, completely passing through a ball resting on the stage. Yet, _you will still get hit!_
+## Next Time
 
-![hit1](hit1.mp4)
+There's a lot I didn't cover for the new physics: I was going to write a bit more, but this much already took longer than I thought, hah. For example, how we handle triangle _face_, _edge_, and _vertex_ collision in particular really helps the new physics have good behavior. Maybe next time?
 
-This is CCD in action; clearly the game is not simply checking whether the box's final position would intersect the ball. Detecting whether a continuously translating sphere and a continuously translating+rotating triangle would ever intersect isn't exactly straightforward to do efficiently, either. Something else is going on here.
+Also, while the physics certainly feels better than it did before, there's still much work to do! Next up, I will be looking into the following:
 
-Upon closer inspection, we see this:
+* Performance optimization with a spatial acceleration data structure
+* Better ball restitution and friction behavior during simultaneous multi-object collision
+* Better friction behavior on sloped surfaces
+* Better continuous collision detection
 
-![hit2](hit2.mp4)
-
-It seems like the ball doesn't hit the box unless more than half of the ball is over it! Hmm...
-
-What happens if we put a donut shape under the ball?
-
-![hit3](hit3.mp4)
-
-So long as the donut also passes completely through the ball in a single frame, it seems like we also don't get hit! Maybe it's using the ball's center as some sort of reference?
-
-These examples so far only looked at collision with _translating_ triangles, but what about rotating triangles?
-
-Here's a platform that rotates 90 degrees in a single frame periodically.
-
-![hit4](hit4.mp4)
-
-Seems consistent enough with our previous observations: you get hit when the ball's center is in the way.
-
-This test really stumped us though. It's a similar rotating platform, but instead of rotating to angles of 0, 90, 180, and 270 degrees, it's on the diagonals: 45, 135, 225, and 315 degrees. Make sure to watch the minimap: the blue strip on the ground is where the rotating platform passes through the ground.
-
-![hit5](hit5.mp4)
-
-You get hit _way_ further away from the platform than you would expect! What could the game be doing? Is it just some weird bug or edge case that we don't care about, or is it illustrating something relevant?
-
-## SMB Continuous Collision Detection Theory
-
-I had a theory for this behavior, and an idea for one more test stage which might help prove it. Rather than showing you a long video, a couple simple 2D diagrams should describe it more easily.
-
-![projection theory diagram](project.png)
-
-The lines represent triangles, and the circles represent the ball. In each of the four situations, the triangle moves from the higher position to the lower position in one frame. As it turns out, the ball is hit in situations A, B, and C, but not in situation D!
-
-Here is what I think is happening: for a given triangle, the game checks whether the ball's center _projects into_ the triangle either before or after the frame. However, the game also checks whether the ball is facing the _front_ of the triangle _before_ its animation, as well as facing the _back_ of the triangle _after_ its animation; otherwise, the ball could collide with triangles that don't pass through it! This ball-center-projection appears to be a key part of Super Monkey Ball's CCD.
-
-Here's a neat demo Bites made which exposes the discovery in a simple way:
-
-![bites single tri rotating test](https://streamable.com/58bot)
-
-Anyway, there's a lot of other theories and code-related stuff I could continue on about, but that'll be all for this post. Look forward to more next time!
+Anyway, see you next time, hopefully!

@@ -69,7 +69,7 @@ First, we check whether the sphere intersects either of the two top-level AABBs.
 If the sphere _does not intersect with an AABB_, then we can completely disregard _all triangles contained within this AABB_. After all, if the sphere doesn't intersect their bounding box, it certainly must not be touching any triangles contained within!
 If the sphere _does_ intersect the AABB, we repeat the process with _all AABBs contained inside it_. This repeats until we reach individual triangles, at which point a normal sphere-triangle intersection test may be performed.
 
-![BRANDON INSERT BVH DIAGRAM HERE THANK YOUU](brandon-bvh-diagram)
+![BVH Traversal Visualization](bvh-traversal-demo.mp4)
 
 Because we roughly eliminate half of all triangles on each iteration, we say that a BVH traversal algorithm like this _runs in logarithmic time_. This is _much_ faster than checking each triangle individually, which takes _linear time_.
 
